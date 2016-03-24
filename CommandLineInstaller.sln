@@ -1,0 +1,26 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 11.00
+# Visual C++ Express 2010
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "sfxclasses", "sfxclasses\sfxclasses.vcxproj", "{ECA4A9E3-E0DD-45C5-AF83-0623A1D80515}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "exestub", "exestub\exestub.vcxproj", "{5AAB7152-C2CF-4324-A6A9-F36206E2AA25}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Win32 = Debug|Win32
+		Release|Win32 = Release|Win32
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{ECA4A9E3-E0DD-45C5-AF83-0623A1D80515}.Debug|Win32.ActiveCfg = Debug|Win32
+		{ECA4A9E3-E0DD-45C5-AF83-0623A1D80515}.Debug|Win32.Build.0 = Debug|Win32
+		{ECA4A9E3-E0DD-45C5-AF83-0623A1D80515}.Release|Win32.ActiveCfg = Release|Win32
+		{ECA4A9E3-E0DD-45C5-AF83-0623A1D80515}.Release|Win32.Build.0 = Release|Win32
+		{5AAB7152-C2CF-4324-A6A9-F36206E2AA25}.Debug|Win32.ActiveCfg = Debug|Win32
+		{5AAB7152-C2CF-4324-A6A9-F36206E2AA25}.Debug|Win32.Build.0 = Debug|Win32
+		{5AAB7152-C2CF-4324-A6A9-F36206E2AA25}.Release|Win32.ActiveCfg = Release|Win32
+		{5AAB7152-C2CF-4324-A6A9-F36206E2AA25}.Release|Win32.Build.0 = Release|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
