@@ -1,5 +1,5 @@
 // ************************************************************************ 
-//   TokenizerCmd.cpp - v 0.0.1
+//   TokenizerCmd.cpp - v 0.2
 // ************************************************************************ 
 
 #include "StdAfx.h"
@@ -44,19 +44,21 @@ Tokens TokenizerCmd::GetToken()
 	{
 		//value += c;
 		do
-		{
+		{			
 			c = GetChar();
+			
 			if ( 0 == c )
-				return TOKEOS;
+				return TOKEOS;			
+
 			if ( c != '"' )
-				value += c;
+				value += c;			
 		}
 		while ( c != '"' );		
 		return TOKPARAM;
 	}
 
 	name.clear();
-	while ( isalpha( c ) )
+	while ( isalpha( (unsigned char)c ) )
 	{
 		name += c;
 		c = GetChar();
@@ -68,8 +70,22 @@ Tokens TokenizerCmd::GetToken()
 		return TOKUNKNOWN;
 	}	
 
-	return FindElemCmd( name.c_str() );
+	return FindElemCmd( curr_tok, name.c_str() );
 }
+
+
+void TokenizerCmd::SkipToken( void )
+{
+	char c;	
+	if( !StreamEmpty() )
+	{
+		do
+			c = GetChar();
+		while( c != '\n' );
+	}
+	return;
+}
+
 
 extern DocInstaller currdoc;
 
@@ -111,9 +127,10 @@ Tokens TokenizerCmd::CommandBlock()
 		case TOKEXIT: break;
 		case TOKUNKNOWN: 
 			{
-				diagmsg.SetMsg("Command unknown ", 0 );
+				diagmsg.SetMsg( name.c_str(), "the command is unrecognized or invalid in the current block" );
 				diagmsg.PrintMsg();
-				curr_tok = GetToken();
+				SkipToken();
+				curr_tok = GetToken();				
 				break;
 			}
 		default:
@@ -154,6 +171,17 @@ Tokens TokenizerCmd::XmlBlock()
 			CommandComment();
 			break;
 		}
+		case TOKINSTFILE: case TOKINSTEXTRACT: case TOKINSTINTERFACE:
+		case TOKINTERFACEPROGRESS: case TOKINTERFACECOLOR:
+		case TOKPRODNAME: case TOKPRODVERSION: case TOKPRODCOMPANY:
+		case TOKFILNAME: case TOKFILEXTRACT:
+		{
+			diagmsg.SetMsg( FindElement( curr_tok )->NameOpenTag, "the command is not valid in the current block" );
+			diagmsg.PrintMsg();
+			SkipToken();
+			curr_tok = GetToken();				
+			break;
+		}
 		default:
 			break;
 	}
@@ -165,21 +193,24 @@ Tokens TokenizerCmd::XmlBlock()
 	return curr_tok;
 }
 
+
 Tokens TokenizerCmd::InstallerBlock()
 {
+	string currname;
+
 	currdoc.AddElement( TOKINSTALLER, name.c_str() );
 
 	curr_tok = GetToken();
 
-	while( curr_tok == TOKINSTFILE || curr_tok == TOKINSTEXTRACT || curr_tok == TOKCOMMENT )
+	while( curr_tok == TOKINSTFILE || curr_tok == TOKINSTEXTRACT || curr_tok == TOKCOMMENT || curr_tok == TOKINSTINTERFACE )
 	{
+		currname.assign( name );
+
 		if( curr_tok == TOKINSTFILE )
-		{//вызов обработчика директивы file
+		{//вызов обработчика директивы name
 			curr_tok = GetToken();
 			if( curr_tok == TOKPARAM )
-			{
-				currdoc.AddElement( TOKINSTFILE, name.c_str(), value.c_str() );
-			}
+				currdoc.AddElement( TOKINSTFILE, currname.c_str(), value.c_str() );			
 			else
 			{
 				diagmsg.SetMsg( "Parametrs file name absent", 0 );
@@ -190,9 +221,21 @@ Tokens TokenizerCmd::InstallerBlock()
 
 		if( curr_tok ==  TOKINSTEXTRACT )
 		//вызов обработчика директивы extract
-		{
+		{			
 			curr_tok = GetToken();
-			currdoc.AddElement( TOKINSTEXTRACT, name.c_str(), value.c_str() );			
+			if( curr_tok == TOKPARAM )
+				currdoc.AddElement( TOKINSTEXTRACT, currname.c_str(), value.c_str() );	
+			else
+			{
+				currdoc.AddElement( TOKINSTEXTRACT, currname.c_str(), value.c_str() );
+				continue;
+			}
+		}
+
+		if( curr_tok == TOKINSTINTERFACE )
+		//вызов обработчика блока interface
+		{
+			InterfaceBlock();
 			continue;
 		}
 
@@ -208,20 +251,24 @@ Tokens TokenizerCmd::InstallerBlock()
 
 Tokens TokenizerCmd::ProductBlock()
 {
+	string currname;
+
 	currdoc.AddElement( TOKPRODUCT, name.c_str() );
 
 	curr_tok = GetToken();
 
 	while ( curr_tok == TOKPRODNAME || curr_tok == TOKPRODVERSION || curr_tok == TOKPRODCOMPANY || curr_tok == TOKCOMMENT )
 	{
+		currname.assign( name );
+
 		if( curr_tok == TOKPRODNAME)
 		{
 			curr_tok = GetToken();
 			if( curr_tok == TOKPARAM )
-				currdoc.AddElement( TOKPRODNAME, name.c_str(), value.c_str() );
+				currdoc.AddElement( TOKPRODNAME, currname.c_str(), value.c_str() );
 			else
 			{
-				currdoc.AddElement( TOKPRODNAME, name.c_str() );
+				currdoc.AddElement( TOKPRODNAME, currname.c_str() );
 				continue;
 			}
 		}
@@ -230,10 +277,10 @@ Tokens TokenizerCmd::ProductBlock()
 		{
 			curr_tok = GetToken();
 			if( curr_tok == TOKPARAM )
-				currdoc.AddElement( TOKPRODVERSION, name.c_str(), value.c_str() );
+				currdoc.AddElement( TOKPRODVERSION, currname.c_str(), value.c_str() );
 			else
 			{
-				currdoc.AddElement( TOKPRODVERSION, name.c_str() );
+				currdoc.AddElement( TOKPRODVERSION, currname.c_str() );
 				continue;
 			}
 		}
@@ -242,10 +289,10 @@ Tokens TokenizerCmd::ProductBlock()
 		{
 			curr_tok = GetToken();
 			if( curr_tok == TOKPARAM )
-				currdoc.AddElement( TOKPRODCOMPANY, name.c_str(), value.c_str() );
+				currdoc.AddElement( TOKPRODCOMPANY, currname.c_str(), value.c_str() );
 			else
 			{
-				currdoc.AddElement( TOKPRODCOMPANY, name.c_str() );
+				currdoc.AddElement( TOKPRODCOMPANY, currname.c_str() );
 				continue;
 			}
 		}
@@ -262,18 +309,22 @@ Tokens TokenizerCmd::ProductBlock()
 
 Tokens TokenizerCmd::FileBlock()
 {
+	string currname;
+
 	currdoc.AddElement( TOKFILE, name.c_str() );
+	currdoc.Movecurrparent();
 
 	curr_tok = GetToken();
 
 	while( curr_tok == TOKFILNAME || curr_tok == TOKFILEXTRACT || curr_tok == TOKCOMMENT )
 	{
+		currname.assign( name );
 		
 		if(  curr_tok == TOKFILNAME )
 		{
 			curr_tok = GetToken();
-			if( curr_tok == TOKPARAM )
-				currdoc.AddElement( TOKFILNAME, name.c_str(), value.c_str() );
+			if( curr_tok == TOKPARAM )				
+				currdoc.AddElement( currname.c_str(), value.c_str() );
 			else
 			{
 				diagmsg.SetMsg( "\nFor file name is missing \"value\"", 0 );
@@ -285,11 +336,11 @@ Tokens TokenizerCmd::FileBlock()
 		if(  curr_tok == TOKFILEXTRACT )
 		{
 			curr_tok = GetToken();
-			if( curr_tok == TOKPARAM )
-				currdoc.AddElement( TOKFILEXTRACT, name.c_str(), value.c_str() );
+			if( curr_tok == TOKPARAM )				
+				currdoc.AddElement( currname.c_str(), value.c_str() );
 			else
-			{
-				currdoc.AddElement( TOKFILEXTRACT, name.c_str() );
+			{				
+				currdoc.AddElement( currname.c_str(), 0 );
 				continue;
 			}
 		}
@@ -299,7 +350,50 @@ Tokens TokenizerCmd::FileBlock()
 
 		curr_tok = GetToken();
 	}	
+	return curr_tok;
+}
+
+
+Tokens TokenizerCmd::InterfaceBlock()
+{
+	string currname;
+
+	currdoc.AddElement( TOKINSTINTERFACE, name.c_str() );	
+	curr_tok = GetToken();
 	
+	while( curr_tok == TOKINTERFACEPROGRESS || curr_tok == TOKINTERFACECOLOR || curr_tok == TOKCOMMENT )
+	{	
+		currname.assign( name );
+
+		if( curr_tok == TOKINTERFACEPROGRESS )
+		{			
+			curr_tok = GetToken();
+			if( curr_tok == TOKPARAM )
+				currdoc.AddElement( TOKINTERFACEPROGRESS, currname.c_str(), value.c_str() );
+			else
+			{
+				currdoc.AddElement( TOKINTERFACEPROGRESS, currname.c_str() );
+				continue;
+			}
+		}
+		
+		if( curr_tok == TOKINTERFACECOLOR )
+		{
+			curr_tok = GetToken();
+			if( curr_tok == TOKPARAM )
+				currdoc.AddElement( TOKINTERFACECOLOR, currname.c_str(), value.c_str() );
+			else
+			{
+				currdoc.AddElement( TOKINTERFACECOLOR, currname.c_str() );
+				continue;
+			}
+		}
+
+		if( curr_tok == TOKCOMMENT )
+			CommandComment();
+
+		curr_tok = GetToken();
+	}
 	return curr_tok;
 }
 
@@ -398,6 +492,9 @@ Tokens TokenizerCmd::CommandBuild()
 
 	if( currdoc.Test() )
 	{
+		diagmsg.SetMsg( "Build start ", 0 );
+		diagmsg.PrintMsg();
+
 		module.BuildSelfInstaller();
 		
 		if( diagmsg.MsgPresent )

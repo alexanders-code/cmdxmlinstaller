@@ -1,5 +1,7 @@
+// ************************************************************************ 
+//   Tokenizer.cpp - v 0.1
+// ************************************************************************
 #include "StdAfx.h"
-
 
 #include "Tokenizer.h"
 
@@ -12,15 +14,24 @@ Tokenizer::~Tokenizer()
 {
 }
 
+
 char Tokenizer::GetChar()
 {
 	return _input.get_char();
 }
 
+
 void Tokenizer::PutBackChar()
 {
 	_input.putback_char();
 }
+
+
+bool Tokenizer::StreamEmpty( void )
+{
+	return _input.CharStreamEmpty();
+}
+
 
 charstream& Tokenizer::GetInput()
 {

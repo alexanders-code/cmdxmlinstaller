@@ -21,17 +21,16 @@ public:
 
 	bool CalculateAllSize();
 
-	//bool CreateFileStub( void );
-
 	bool BuildSelfInstaller( void );
 	
 private:
-
-	//char* _datablockarray;
+		
 	HeaderSelf _hs;
 	
 	DataBlock _currblock;
 	std::vector< DataBlock > _datablockarray;
+
+	std::vector< CommandBlock > _commandblockarray;
 
 	DocInstaller* _installerfile;
 
@@ -42,6 +41,8 @@ private:
 	ULARGE_INTEGER CalculateAllFileSize( void );
 
 	void FillDataBlockArr( void );
+
+	void FillCommandBlockArr( void );
 
 	void ClearCurrDataBlock( void );
 

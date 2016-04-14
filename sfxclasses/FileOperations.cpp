@@ -9,6 +9,7 @@
 #include <direct.h>
 #include <Windows.h>
 #include <string.h>
+#include <stdio.h>
 
 #include <iostream>
 using namespace std;
@@ -186,6 +187,27 @@ unsigned long FileOperations::GetSizeFile( void )
 }
 
 
+time_t FileOperations::GetMoidifyTime( void )
+{
+	return _filemaskinfo.time_write;
+}
+
+
+time_t FileOperations::GetModifyTimeSingleFile( const char* p )
+{
+	if ( -1 == _stat( p, &_bufwithinfo ) )
+	{
+		if ( errno == ENOENT )
+			diagmsg.SetMsg( "No such file or directory", p );
+		else
+			diagmsg.SetMsg( "Error with file", p );
+		return 0;
+	}
+	else
+		return _bufwithinfo.st_mtime;
+}
+
+
 void FileOperations::ClearDelBuf()
 {
 	delete[] _rwbuf;
@@ -342,10 +364,7 @@ void FileOperations::OpenForWrite( const char* path )
 		return;
 
 	if ( fopen_s( &_fileworking, path, "wb" ) )
-	{	
-
-		std::cout << errno << endl;
-		int eee = errno;
+	{		
 		diagmsg.SetMsg( "File not create ", path );
 		return;
 	}	

@@ -1,3 +1,6 @@
+// ************************************************************************ 
+//   Tokenizer.h - v 0.1
+// ************************************************************************ 
 #pragma once
 
 #ifndef _CMDINST_TOKENIZER_H
@@ -5,6 +8,7 @@
 
 #include <string>
 #include <iostream>
+#include <Windows.h>
 
 #include "structure.h"
 
@@ -25,6 +29,7 @@ struct charstream
   virtual char get_char()
   {
 	  char ch;
+	  char chc;
 
 	  if( p == end )
 	  {
@@ -32,9 +37,10 @@ struct charstream
 		  do
 		  {
 			  cin.get( ch );
-			  currstr += ch;
+			  OemToCharBuffA( &ch, &chc, 1  );
+			  currstr += chc;
 		  }
-		  while ( ch != '\n' );
+		  while ( chc != '\n' );
 
 		  p = currstr.c_str();
 		  start = p;
@@ -51,29 +57,29 @@ struct charstream
 		  p --;
   }
 
-  void ResizeCurrString( const char* pf, unsigned int sz )
-  {
-	  int i = 0;
-	  const char* tmp;
-	  tmp = start;
+void ResizeCurrString( const char* pf, unsigned int sz )
+{
+	int i = 0;
+	const char* tmp;
+	tmp = start;
 	  
-	  while ( tmp != p )
-	  {
-		  tmp ++;
-		  i ++;
-	  }
+	while ( tmp != p )
+	{
+		tmp ++;
+		i ++;
+	}
 
-	  currstr.insert( i, pf, sz );
+	currstr.insert( i, pf, sz );
 
-	  ReplaceCommentTag();
-	  ReplaceClosedTag();
-	  ReplaceQuote( "<" );
-	  ReplaceQuote( ">" );
+	ReplaceCommentTag();
+	ReplaceClosedTag();
+	ReplaceQuote( "<" );
+	ReplaceQuote( ">" );
 
-	  p = currstr.c_str() + i;
-	  start = p;
-	  end = p + strlen( pf );
-  }
+	p = currstr.c_str() + i;
+	start = p;
+	end = p + strlen( pf );
+}
 
 
  void ReplaceQuote( const char* p )
@@ -105,6 +111,7 @@ void ReplaceClosedTag()
 	}
 }
 
+
 void ReplaceCommentTag()
 {
 	size_t i = 0;	
@@ -128,8 +135,16 @@ void ReplaceCommentTag()
 	}
 }
 
-};
 
+bool CharStreamEmpty( void )
+{
+	if( p == end )
+		return true;
+	else
+		return false;
+}
+
+};//struct charstream
 
 //static const int MAXNAMESIZE = 128;
 //static const int MAXVALUESIZE = 128;
@@ -144,21 +159,17 @@ public:
 	charstream& GetInput();
 
 protected:
-
 	char GetChar();
 	char SkipWhitespace();
 	void PutBackChar();
+	bool StreamEmpty( void );
 	
 	string name;
 	string value;
-	Tokens curr_tok;
-
-	
+	Tokens curr_tok;	
 
 private:	
-	
-	charstream& _input;
-	
+	charstream& _input;	
 };
 
 

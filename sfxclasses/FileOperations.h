@@ -83,6 +83,10 @@ public:
 
 	unsigned long GetSizeFile();
 
+	time_t GetMoidifyTime( void );
+
+	time_t GetModifyTimeSingleFile( const char* p );
+
 protected:
 
 	string _fullname;

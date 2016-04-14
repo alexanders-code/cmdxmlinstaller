@@ -1,5 +1,5 @@
 // ************************************************************************ 
-//   TokenizerCmd.h - v 0.0.1
+//   TokenizerCmd.h - v 0.2
 // ************************************************************************ 
 #pragma once
 
@@ -26,12 +26,14 @@ public:
 
 private:
 	Tokens GetToken();
+	void SkipToken( void );
 	Tokens CommandBlock();
 
 	Tokens XmlBlock();
 	Tokens InstallerBlock();
 	Tokens ProductBlock();
 	Tokens FileBlock();	
+	Tokens InterfaceBlock();
 
 	Tokens CommandOpen();
 	Tokens CommandSave();

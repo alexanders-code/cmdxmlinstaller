@@ -22,7 +22,7 @@ using namespace std;
 
 int _tmain(int argc, _TCHAR* argv[])
 {
-	setlocale( LC_ALL, ".ACP" );
+	setlocale( LC_ALL, "" );
 		
 	charstream cs;
 	TokenizerCmd tc( cs );

@@ -1,5 +1,5 @@
 1 VERSIONINFO
-FILEVERSION 0, 0, 0, 0
+FILEVERSION 0, 0,20, 0
 PRODUCTVERSION 0, 0, 0, 0
 BEGIN
     BLOCK "StringFileInfo"
@@ -15,7 +15,7 @@ BEGIN
             VALUE "OriginalFilename", ""
             VALUE "PrivateBuild", ""
             VALUE "ProductName", "A simple tool to create a installation packages   "
-            VALUE "ProductVersion", "000,000,000,001"
+            VALUE "ProductVersion", "000,000,020,000"
         END
     END
 END

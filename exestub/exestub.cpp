@@ -1,5 +1,6 @@
-// ************************************************************************ 
-//   exestub.cpp - v 0.0.1
+п»ї// ************************************************************************ 
+//   exestub.cpp - v 0.3
+//	 exestub.exe - v 0.0.17.0alpha
 // ************************************************************************ 
 
 #include "stdafx.h"
@@ -9,7 +10,10 @@
 #include <memory.h>
 #include <string>
 #include <iostream>
+#include <time.h>
 
+#include "exestub.h"
+#include "Interpreter.h"
 
 #include "..\sfxclasses\DataStruct.h"
 #include "..\sfxclasses\MsgInfErr.h"
@@ -18,11 +22,30 @@
 
 std::vector< DataBlock > datablockarray;
 HeaderSelf hs;
+std::vector< CommandBlock > commandblockarray;
+
+WORD glcolor;
+static int glpercent = 0;
+bool firstrun = true;
+
+void CallbackPrintPercent( unsigned int sz, unsigned int r, WORD color );
+void CallbackPrintProgress( unsigned int sz, unsigned int r, WORD color );
+//pointer to callback function 
+typedef void ( *CALLBACKPRINT )( unsigned int, unsigned int, WORD );
+
+void TimetToFileTime( time_t t, LPFILETIME pft )
+//function from MSDN
+{
+    LONGLONG ll = Int32x32To64(t, 10000000) + 116444736000000000;
+    pft->dwLowDateTime = (DWORD) ll;
+    pft->dwHighDateTime = ll >> 32;
+}
+
 
 bool CalculateAllSize( void )
-//перебор всех букв дисков, указанныых в путях datablockarray на которые планируется извлекать файлы
-//подсчет требуемого места и сравнение со сводобным местом на заданных дисках
-// true если места достаточно
+//РїРµСЂРµР±РѕСЂ РІСЃРµС… Р±СѓРєРІ РґРёСЃРєРѕРІ, СѓРєР°Р·Р°РЅРЅС‹С‹С… РІ РїСѓС‚СЏС… datablockarray РЅР° РєРѕС‚РѕСЂС‹Рµ РїР»Р°РЅРёСЂСѓРµС‚СЃСЏ РёР·РІР»РµРєР°С‚СЊ С„Р°Р№Р»С‹
+//РїРѕРґСЃС‡РµС‚ С‚СЂРµР±СѓРµРјРѕРіРѕ РјРµСЃС‚Р° Рё СЃСЂР°РІРЅРµРЅРёРµ СЃРѕ СЃРІРѕРґРѕР±РЅС‹Рј РјРµСЃС‚РѕРј РЅР° Р·Р°РґР°РЅРЅС‹С… РґРёСЃРєР°С…
+// true РµСЃР»Рё РјРµСЃС‚Р° РґРѕСЃС‚Р°С‚РѕС‡РЅРѕ
 {
 	struct SizeOnDrive
 	{
@@ -47,7 +70,7 @@ bool CalculateAllSize( void )
 	tmp.RequiredSize = 0;	
 
 	for( int i = 0; i < datablockarray.size(); i ++ )
-	// суммирование размеров файлов для каждой букры диска, куда планируется их извлечь
+	// СЃСѓРјРјРёСЂРѕРІР°РЅРёРµ СЂР°Р·РјРµСЂРѕРІ С„Р°Р№Р»РѕРІ РґР»СЏ РєР°Р¶РґРѕР№ Р±СѓРєРІС‹ РґРёСЃРєР°, РєСѓРґР° РїР»Р°РЅРёСЂСѓРµС‚СЃСЏ РёС… РёР·РІР»РµС‡СЊ
 	{
 		if( !strlen( datablockarray.at( i ).ExtractTo ) )
 			strcpy_s( currdrive, _MAX_DRIVE, pathdrive );
@@ -79,8 +102,7 @@ bool CalculateAllSize( void )
 	}
 
 	for( int i = 0; i < AllDrives.size(); i ++ )
-	{
-		std::cout << AllDrives.at( i ).Dr << " " << AllDrives.at( i ).RequiredSize << endl;
+	{		
 
 		ULARGE_INTEGER freespace;
 		if( !GetDiskFreeSpaceExA( AllDrives.at( i ).Dr, &freespace, 0, 0 ) )
@@ -99,20 +121,34 @@ bool CalculateAllSize( void )
 	return true;
 }
 
-void FillDataBlockArrayFromSelf( FileOpsSelf* fself )
-// Заполнить vector datablockarray данными
-{	
-	DataBlock ds;
+
+#if _DEBUG
+void FillHeaderSelf( FileOperations* fself )
+#else
+void FillHeaderSelf( FileOpsSelf* fself )
+#endif
+{
 	fself->MoveInFile( 28 );
 	fself->ReadInBuf( sizeof( hs ) );
 	memcpy_s( (char *)&hs, sizeof( hs ), fself->GetDataBuf(), sizeof( hs ) );
 	fself->ClearBuf();
+}
+
+
+#if _DEBUG
+void FillDataBlockArrayFromSelf( FileOperations* fself )
+#else
+void FillDataBlockArrayFromSelf( FileOpsSelf* fself )
+#endif
+// Р—Р°РїРѕР»РЅРёС‚СЊ vector datablockarray РґР°РЅРЅС‹РјРё
+{	
+	DataBlock ds;
 
 	DWORD datablocknumbers = hs.SizeAllDataBlock / sizeof( DataBlock );
-	//сколько блоков DataBlock гарантированно поместится в буфер размером sizerwbuf
+	//СЃРєРѕР»СЊРєРѕ Р±Р»РѕРєРѕРІ DataBlock РіР°СЂР°РЅС‚РёСЂРѕРІР°РЅРЅРѕ РїРѕРјРµСЃС‚РёС‚СЃСЏ РІ Р±СѓС„РµСЂ СЂР°Р·РјРµСЂРѕРј sizerwbuf
 	DWORD fitinsidebuf = sizerwbuf / sizeof( DataBlock ) - 1;
 
-	fself->MoveInFile( hs.OffsetStartData );
+	fself->MoveInFile( hs.SizeAllCommandBlock + hs.OffsetStartData );
 
 	DWORD blockread = 0;
 	while( blockread < datablocknumbers )
@@ -137,12 +173,85 @@ void FillDataBlockArrayFromSelf( FileOpsSelf* fself )
 	return;
 }
 
-bool ExtractFilesFromSelf( FileOpsSelf* fself )
+
+//Р·Р°РїРѕР»РЅРёС‚СЊ vector commandblockarray РґР°РЅРЅС‹РјРё
+#if _DEBUG
+void FillCommandBlockArrayFromSelf( FileOperations* fself )
+#else
+void FillCommandBlockArrayFromSelf( FileOpsSelf* fself )
+#endif
+{
+	CommandBlock cb;
+
+	if( 0 == hs.SizeAllCommandBlock )
+		return;
+
+	DWORD commandblocknumbers = hs.SizeAllCommandBlock / sizeof (CommandBlock );
+	DWORD fitinsidebuf = sizerwbuf / sizeof( CommandBlock ) - 1;
+
+	fself -> MoveInFile( hs.OffsetStartData );
+
+	DWORD blockread = 0;
+	while( blockread < commandblocknumbers )
+	{
+		if( blockread + fitinsidebuf > commandblocknumbers )
+			fitinsidebuf = commandblocknumbers - blockread;
+
+		fself->ReadInBuf( fitinsidebuf * sizeof( CommandBlock ) );
+		
+		char *p = fself->GetDataBuf();
+		for( int i = 0; i < fitinsidebuf; i ++ )
+		{
+			memcpy_s( (char *)&cb, sizeof( cb ), p, sizeof( cb ) );
+			commandblockarray.push_back( cb );
+			p += sizeof( cb );
+		}
+
+		fself -> ClearBuf();
+		blockread += fitinsidebuf;
+	}
+
+	return;
+}//void FillCommandBlockArrayFromSelf( FileOpsSelf* fself )
+
+
+void ChangeAttrAndModifyDate( const std::string& fn, const DWORD attr, const time_t modtime )
+{
+	FILETIME ft;
+	
+	TimetToFileTime( modtime, &ft );
+	
+	wchar_t ws[ _MAX_PATH ];
+	MultiByteToWideChar( 0, 0, fn.c_str(), -1, ws, _MAX_PATH );
+	
+	HANDLE hf = CreateFile( ws, GENERIC_WRITE, FILE_SHARE_WRITE, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0 );
+
+	if( INVALID_HANDLE_VALUE == hf )
+	{
+		int r =GetLastError();
+		diagmsg.SetMsg( "Error with set dtate modify ", fn.c_str() );
+		return;
+	}
+
+	SetFileTime( hf, 0, 0, &ft );
+	SetFileAttributes( ws, attr );
+	if( !CloseHandle( hf ) )	
+		diagmsg.SetMsg( "Error close file ", fn.c_str() );
+
+	return;
+}
+
+
+#if _DEBUG
+bool ExtractFilesFromSelf( FileOperations* fself, CALLBACKPRINT cbp )
+#else
+bool ExtractFilesFromSelf( FileOpsSelf* fself, CALLBACKPRINT cbp )
+#endif
 {
 	FileOperations fo;
 	std::string str;
 	
-	fself -> MoveInFile( hs.OffsetStartData + hs.SizeAllDataBlock );
+	fself -> MoveInFile( hs.OffsetStartData + hs.SizeAllCommandBlock + hs.SizeAllDataBlock );
 	for( int i = 0; i < datablockarray.size(); i ++ )
 	{
 		str.assign( datablockarray.at( i ).ExtractTo );
@@ -157,6 +266,8 @@ bool ExtractFilesFromSelf( FileOpsSelf* fself )
 
 		DWORD bytesread = 0;
 		unsigned int szbuf = sizerwbuf;
+		
+		std::cout << "install " << datablockarray.at( i ).ExtractTo << datablockarray.at( i ).NameFile << " ";
 
 		while( bytesread < datablockarray.at( i ).FileSize )
 		{
@@ -178,29 +289,165 @@ bool ExtractFilesFromSelf( FileOpsSelf* fself )
 				return false;
 			}
 			bytesread += szbuf;
+			
+			// call callback function on pointer
+			if( cbp )
+				cbp( datablockarray.at( i ).FileSize, bytesread, glcolor );
+			
 			fself -> ClearBuf();
 		}		
-		fo.DeattachFile();		
-		std::cout << "install " << datablockarray.at( i ).ExtractTo << datablockarray.at( i ).NameFile << " successfully." << endl;
+
+		fo.DeattachFile();
+		//set original attributes and datetime write		
+		ChangeAttrAndModifyDate( str, datablockarray.at( i ).Attributes, datablockarray.at( i ).ModifyTime );
+		if( diagmsg.MsgPresent)
+		{
+			diagmsg.PrintMsg();
+			return false;
+		}
+		else
+			std::cout << "successfully." << endl;
 	}
 
 	return true;
 }
 
 
-int _tmain(int argc, _TCHAR* argv[])
+//РїСЂРѕРіСЂРµСЃСЃ РёР·РІР»РµС‡РµРЅРёСЏ/Р·Р°РїРёСЃРё РЅР° РґРёСЃРє С„Р°Р№Р»Р° РІ РїСЂРѕС†РµРЅС‚Р°С…
+// sz СЂР°Р·РјРµСЂ С„Р°Р№Р»Р°, r - СЃС‡РёС‚Р°РЅРѕ РІСЃРµРіРѕ Р±Р°Р№С‚
+void CallbackPrintPercent( unsigned int sz, unsigned int r, WORD color )
 {
+	CONSOLE_SCREEN_BUFFER_INFO csbi;
+	COORD coord;
+	
+	unsigned int percent;
+	char strpercent[ 5 ] = { 0, 0, 0, 0, 0 };	
+
+	if( 0 == sz || r > sz )
+		return;
+	
+	HANDLE conshandle = GetStdHandle(STD_OUTPUT_HANDLE);
+	GetConsoleScreenBufferInfo( conshandle, &csbi );
+
+	WORD savetextcolor = 0;
+	savetextcolor = savetextcolor | ( csbi.wAttributes & FOREGROUND_GREEN );
+	savetextcolor = savetextcolor | ( csbi.wAttributes & FOREGROUND_BLUE );
+	savetextcolor = savetextcolor | ( csbi.wAttributes & FOREGROUND_RED );
+	coord.X = csbi.dwCursorPosition.X;
+    coord.Y = csbi.dwCursorPosition.Y;
+
+	percent =  (float)r / (float)sz * 100;
+	
+	_itoa( percent, strpercent, 10 );
+	strpercent[ strlen( strpercent ) ] = '%';	
+	
+	if( color )
+		SetConsoleTextAttribute( conshandle, color );
+	else
+		SetConsoleTextAttribute( conshandle, savetextcolor );
+
+	std::cout << strpercent;
+
+	SetConsoleTextAttribute( conshandle, savetextcolor );
+	
+	if( 100 > percent )	
+		SetConsoleCursorPosition( conshandle, coord );	
+	else
+		std::cout << " ";
+
+	return;
+}
+
+//РїСЂРѕРіСЂРµСЃСЃ РёР·РІР»РµС‡РµРЅРёСЏ/Р·Р°РїРёСЃРё РЅР° РґРёСЃРє С„Р°Р№Р»Р° РІ РІРёРґРµ РїРѕР»РѕСЃРєРё
+// sz СЂР°Р·РјРµСЂ С„Р°Р№Р»Р°, r - СЃС‡РёС‚Р°РЅРѕ РІСЃРµРіРѕ Р±Р°Р№С‚
+void CallbackPrintProgress( unsigned int sz, unsigned int r, WORD color )
+{
+	CONSOLE_SCREEN_BUFFER_INFO csbi;
+	COORD coord;
+	int percentoneblock = 2;
+	unsigned int percent;
+	WORD savetextcolor = 0;
+
+	if( 0 == sz ) 
+		return;
+
+	HANDLE conshandle = GetStdHandle(STD_OUTPUT_HANDLE);	
+	GetConsoleScreenBufferInfo( conshandle, &csbi );
+	coord.X = csbi.dwCursorPosition.X;
+	coord.Y = csbi.dwCursorPosition.Y;		
+	savetextcolor = savetextcolor | ( csbi.wAttributes & FOREGROUND_GREEN );
+	savetextcolor = savetextcolor | ( csbi.wAttributes & FOREGROUND_BLUE );
+	savetextcolor = savetextcolor | ( csbi.wAttributes & FOREGROUND_RED );	
+
+	if( firstrun )
+	{
+		//РїСЂРё РїРµСЂРІРѕРј Р·Р°РїСѓСЃРєРµ РїСЂРѕРІРµСЂРєР° РЅР° РІРѕР·РјРѕР¶РЅСѓСЋ РѕС€РёР±РєСѓ
+		if( r > sz )
+			return;		
+
+		std::cout << '\n';	
+		GetConsoleScreenBufferInfo( conshandle, &csbi );
+		coord.X = csbi.dwCursorPosition.X;
+		coord.Y = csbi.dwCursorPosition.Y;		
+
+		for( int i = 0; i < 100 / percentoneblock; i++ )
+			WriteConsole( conshandle, L"в–€", 1, 0, 0 );
+
+		SetConsoleCursorPosition( conshandle, coord );
+
+		firstrun = false;
+	}
+	
+	percent =  (float)r / (float)sz * 100;
+	if( percentoneblock == ( percent - glpercent ) )
+	{
+		
+		SetConsoleTextAttribute( conshandle, color );		
+			WriteConsole( conshandle, L"в–€", 1, 0, 0 );
+		SetConsoleTextAttribute( conshandle, savetextcolor );
+		glpercent = percent;
+		
+	}
+
+	if( 100 <= percent )
+	{
+		glpercent = 0;		
+		std::cout << '\n';
+	}
+}
+
+
+int _tmain(int argc, _TCHAR* argv[])
+{	
+	setlocale( LC_ALL, ".ACP" );	
+#if _DEBUG
+	FileOperations fo;
+#else
 	FileOpsSelf fo;
+#endif	
+	FillHeaderSelf( &fo );
+	FillCommandBlockArrayFromSelf( &fo );
+
+	Interpreter interpr( &commandblockarray );
+	glcolor = interpr.GetColor();
+	
+	CALLBACKPRINT pf = 0;
+	if( interpr.GetProgress() )
+	{
+		if( 0 == strcmp( interpr.GetProgress(), "percent" ) )
+			pf = &CallbackPrintPercent;	
+		if( 0 == strcmp( interpr.GetProgress(), "bar" ) )
+			pf = &CallbackPrintProgress;
+	}
 
 	FillDataBlockArrayFromSelf( &fo );
-	
+
 	if( CalculateAllSize() )
 	{
-		ExtractFilesFromSelf( &fo );		
+		ExtractFilesFromSelf( &fo, pf );		
 		fo.ClearDelBuf();
 		fo.DeattachFile();
 	}	
-
 	return 0;
 }
 

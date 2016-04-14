@@ -1,5 +1,5 @@
 // ************************************************************************ 
-//   DocInstaller.cpp - v 0.0.1
+//   DocInstaller.cpp - v 0.4
 // ************************************************************************ 
 
 #include "StdAfx.h"
@@ -14,8 +14,7 @@
 
 DocInstaller::DocInstaller(void)
 {
-	_currparent = 0;
-	
+	_currparent = 0;	
 	_currnode.Petalon = 0;
 }
 
@@ -81,10 +80,18 @@ void DocInstaller::DelElement( const char* name, const char* val )
 	_currparent->ChildNode.erase( _currparent->ChildNode.begin() + i );
 }
 
+
 void DocInstaller::Movecurrparent( Tokens t )
 // устанавливает новое значение _currparent в соответсвии с Tokens
 {
 	_currparent = FindParentOnTok( t );
+}
+
+
+// _currparent присвоить последнему добавленному элементу
+void DocInstaller::Movecurrparent( void )
+{
+	_currparent = _lastinsertnode;
 }
 
 
@@ -133,6 +140,9 @@ bool DocInstaller::Test( void )
 	/*if( !TagExtractControl() )
 		return false;*/
 
+	if( !VariableControl() )
+		return false;
+
 	if( RequiredElementPresent( ) && RequiredValuePresent() )
 	{
 		std::cout << "\nStructure current document correct\n";
@@ -165,7 +175,7 @@ void DocInstaller::FillCurrDocnode( const char* name, const char* val = 0 )
 
 	if ( !val &&  YES == tmp->Param )
 	{
-		std::cout << " Value for element " << name << "absent\n";
+		std::cout << " Value for element " << name << " absent\n";
 		return;
 	}
 
@@ -182,9 +192,9 @@ void DocInstaller::InsertNode( Docnode* parent, Docnode* toinsert )
 {	
 	int i;
 	if ( !parent )
-		i = OffsetFromParent( toinsert->Namenode.c_str(), 0 );
+		i = OffsetFromParent( toinsert->Petalon->Tn, 0 );
 	else
-		i = OffsetFromParent( toinsert->Namenode.c_str(), parent->Petalon );
+		i = OffsetFromParent( toinsert->Petalon->Tn, parent->Petalon );
 	
 	if ( -1 == i )
 	{
@@ -200,7 +210,11 @@ void DocInstaller::InsertNode( Docnode* parent, Docnode* toinsert )
 		t = &( parent->ChildNode );
 
 	if ( t->empty() )
+	{
 		t->push_back( *toinsert );
+		_lastinsertnode = &t->back();
+	}
+
 	else
 	{		
 		for ( size_t j = 0; j < t->size(); j ++ )
@@ -208,36 +222,80 @@ void DocInstaller::InsertNode( Docnode* parent, Docnode* toinsert )
 			if( ( t->at( j ).Petalon->Tn == TOKCOMMENT ) )
 				continue;
 			int k;
-			if ( !parent )
-				k = OffsetFromParent( t->at( j ).Namenode.c_str(), 0 );
-			else
-				k = OffsetFromParent( t->at( j ).Namenode.c_str(), t->at( j ).Petalon );
+			if ( !parent )				
+				k = OffsetFromParent( t->at( j ).Petalon->Tn, 0 );
+			else				
+				k = OffsetFromParent( t->at( j ).Petalon->Tn, parent->Petalon );
+			
 			if ( i < k && -1 != k )
 			{
-				t->insert( t->begin() + j, _currnode );
+				if( 1 == _currnode.Petalon->Repetition )
+				{
+					for( size_t i = 0; i < t->size(); i ++ )
+					{
+						if( t->at( i ).Petalon->Tn == _currnode.Petalon->Tn )
+						{
+							std::vector< Docnode > tmpchild;
+							if( !t->at( i ).ChildNode.empty() )
+							{
+								tmpchild = t->at( i ).ChildNode;
+								t->at( i ).ChildNode.clear();
+							}
+							t->at( i ) = _currnode;
+							t->at( i ).ChildNode = tmpchild;							
+							return;
+						}
+					}
+				}				
+				t->push_back( _currnode );
+				_lastinsertnode = &t->back();
 				return;
 			}
-			if ( i == k && toinsert->Petalon->Repetition == 1 )
+
+ 			if ( i == k && toinsert->Petalon->Repetition == 1 )
 			{
-				t->at( j ) = _currnode;
+				std::vector< Docnode > tmpchild;					
+				for( size_t i = 0; i < t->size(); i ++ )
+				{
+					if( t->at( i ).Petalon->Tn == _currnode.Petalon->Tn )
+					{
+						std::vector< Docnode > tmpchild;
+						if( !t->at( i ).ChildNode.empty() )
+						{
+							tmpchild = t->at( i ).ChildNode;
+							t->at( i ).ChildNode.clear();
+						}
+						t->at( i ) = _currnode;
+						t->at( i ).ChildNode = tmpchild;							
+						return;
+					}
+				}				
+				t->push_back( _currnode );
+				_lastinsertnode = &t->back();
 				return;
 			}
+
 			if ( i == k && toinsert->Petalon->Repetition != 1 )
-			{
-				t->insert( t->begin() + j, _currnode );
+			{				
+				t->push_back( _currnode );
+				_lastinsertnode = &t->back();
 				return;
 			}
 		}
 		t->push_back( _currnode );
+		_lastinsertnode = &t->back();
 	}
 	return;
 }
+
 
 void DocInstaller::InsertNode( Docnode* toinsert )
 {
 	InsertNode( _currparent, toinsert );
 }
 
+
+// -1 если pparent не является родительским для name
 int DocInstaller::OffsetFromParent( const char* name, const Element* pparent ) const
 {	
 	int j = 0;
@@ -250,6 +308,37 @@ int DocInstaller::OffsetFromParent( const char* name, const Element* pparent ) c
 	}
 	return -1;
 }
+
+
+// -1 если pparent не является родительским для name
+int DocInstaller::OffsetFromParent( Tokens t, const Element* pparent ) const
+{	
+	int j = 0;
+	Element* e;
+
+	if( !pparent )
+		return j;
+
+	e = FindElement( t );
+	if( e )
+		e = e->BaseElement;
+	
+	if( !e )
+		return j;
+	
+	j ++;
+	while( e != pparent && 0 != e )
+	{
+		e = e->BaseElement;
+		j ++;
+	}
+
+	if( e == pparent )
+		return j;
+	else
+		return -1;
+}
+
 
 Element* DocInstaller::ElementFromParent( const char* name, const Element* pparent ) const
 {	
@@ -282,9 +371,7 @@ DocInstaller::Docnode* DocInstaller::FindParentOnTok( Tokens t )
 }
 
 
-
 DocInstaller::Docnode* DocInstaller::FindNodeOnTok( std::vector< Docnode >* p, Tokens t )
-
 {
 	static Docnode* r = 0;	
 
@@ -302,6 +389,7 @@ DocInstaller::Docnode* DocInstaller::FindNodeOnTok( std::vector< Docnode >* p, T
 		if( r )
 			break;
 	}
+
 	return r;
 }
 
@@ -426,7 +514,7 @@ bool DocInstaller::RequiredElementPresent( void )
 
 bool DocInstaller::RequiredValuePresent( void )
 //проверка наличия value в элементах где значение должно быть обязательно
-// true если занчение у всех элементов, гед оно является обязательным присутсвует
+// true если занчение у всех элементов, где оно является обязательным присутсвует
 {
 	bool retcode = true;
 	for( int i = 0; i < EtalonSz; i ++ )
@@ -434,7 +522,7 @@ bool DocInstaller::RequiredValuePresent( void )
 		if( YES == Etalon[ i ].Param )
 		{
 			Docnode* p = FindNodeOnTok( &_structuredxml, Etalon[ i ].Tn );
-			if ( !p )			
+			if ( p )			
 			{
 				if ( p->Value.empty() && YES == p->Petalon->Param )
 				{
@@ -446,6 +534,27 @@ bool DocInstaller::RequiredValuePresent( void )
 	}
 
 	return retcode;
+}
+
+
+//Проверка, являются ли значения переменных допустимыми
+bool DocInstaller::VariableControl( void )
+{
+	bool rt = true;
+
+	for( int i = 0; i < DefVariableArrSz; i ++ )
+	{
+		Docnode *p = FindNodeOnTok( &_structuredxml, DefVariableArr[ i ].Tn );
+		if( p && !p -> Value.empty() )
+		{
+			if ( !VariableValControl( DefVariableArr[ i ].Tn, p -> Value.c_str() ) )
+			{
+				std::cout << "Invalid variable value: " << p->Namenode << '\n';
+				rt = false;
+			}
+		}
+	}
+	return rt;
 }
 
 

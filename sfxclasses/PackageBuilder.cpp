@@ -1,4 +1,4 @@
-// ************************************************************************ 
+п»ї// ************************************************************************ 
 //   PackageBuilder.cpp - v 0.0.1
 // ************************************************************************ 
 #include "StdAfx.h"
@@ -7,6 +7,8 @@
 #include <string>
 #include <vector>
 #include <string.h>
+#include <cvt/wstring>
+#include <codecvt>вЂЋ
 
 #include "PackageBuilder.h"
 #include "FileOperations.h"
@@ -27,7 +29,7 @@ PackageBuilder::~PackageBuilder(void)
 
 
 bool PackageBuilder::CalculateAllSize()
-// true если свободного места на диске достаточно 
+// true РµСЃР»Рё СЃРІРѕР±РѕРґРЅРѕРіРѕ РјРµСЃС‚Р° РЅР° РґРёСЃРєРµ РґРѕСЃС‚Р°С‚РѕС‡РЅРѕ 
 {
 	std::string currname;
 	std::string currval;
@@ -41,7 +43,7 @@ bool PackageBuilder::CalculateAllSize()
 	HRSRC hres = FindResourceA( 0, reourceid, "BINARY" );	
 	sz.QuadPart += SizeofResource(0, hres);
 	
-	//При обновлении ресурсов размер файла почему то увеличивается на 1024 байт
+	//РџСЂРё РѕР±РЅРѕРІР»РµРЅРёРё СЂРµСЃСѓСЂСЃРѕРІ СЂР°Р·РјРµСЂ С„Р°Р№Р»Р° РїРѕС‡РµРјСѓ С‚Рѕ СѓРІРµР»РёС‡РёРІР°РµС‚СЃСЏ РЅР° 1024 Р±Р°Р№С‚
 	sz.QuadPart += 1024;
 	//
 
@@ -110,6 +112,8 @@ void PackageBuilder::FillDataBlockArr( void )
 	std::string nameval;	
 	std::string extractval;
 	std::string defaultextractpath;
+	// for GetFileAttributes
+	//stdext::cvt::wstring_convert<std::codecvt_utf8<wchar_t>> conv;
 
 	FileOperations fo;
 
@@ -142,43 +146,64 @@ void PackageBuilder::FillDataBlockArr( void )
 	{
 		nameval.clear();		
 		extractval.clear();		
-
-		if( !_installerfile->GetChildNameValue( currname, currval ) )
-			return ;
-		do
-		{
-			if( currname == "name" && !currval.empty() )
-				nameval.assign( currval );
-			if( currname == "extract" && !currval.empty() )
-				extractval.assign( currval );			
-		}
-		while (	_installerfile ->GetChildNameValue( currname, currval, false ) );
+		currname.clear();
+		currval.clear();
 		
-		if( extractval.empty() )
-			extractval.assign( defaultextractpath );
-		
-		if( fo.PathItsFileMask( nameval.c_str() ) )
+		if( _installerfile->GetChildNameValue( currname, currval ) )
 		{
-			fo.GetInfoFirstFileMask( nameval.c_str() );
 			do
-			{				
-				strcpy_s( _currblock.NameFile, _MAX_PATH, fo.GetFullName()->c_str() );
-				strcpy_s( _currblock.ExtractTo, _MAX_PATH, extractval.c_str() );
-				_currblock.FileSize = fo.GetSizeFile();
-				_datablockarray.push_back( _currblock );
+			{
+				if( currname == "name" && !currval.empty() )
+					nameval.assign( currval );
+				if( currname == "extract" && !currval.empty() )
+					extractval.assign( currval );			
 			}
-			while ( fo.GetInfoNextFileMask() );
+			while (	_installerfile ->GetChildNameValue( currname, currval, false ) );
+		
+			if( extractval.empty() )
+				extractval.assign( defaultextractpath );
 
-		}
-		else
-		{
+			wchar_t ws[ _MAX_PATH ];
+
+			if( fo.PathItsFileMask( nameval.c_str() ) )
+			{
+				fo.GetInfoFirstFileMask( nameval.c_str() );
+				do
+				{				
+					strcpy_s( _currblock.NameFile, _MAX_PATH, fo.GetFullName()->c_str() );
+					strcpy_s( _currblock.ExtractTo, _MAX_PATH, extractval.c_str() );
+					_currblock.FileSize = fo.GetSizeFile();
+					_currblock.ModifyTime = fo.GetMoidifyTime();
+					
+					//std::wstring ws;
+					MultiByteToWideChar( 0, 0, fo.GetFullName()->c_str(), -1, ws, _MAX_PATH );
+					//ws.assign( conv.from_bytes( fo.GetFullName()->c_str() ) );
+					_currblock.Attributes = GetFileAttributes( ws );					
+					_datablockarray.push_back( _currblock );
+
+					_wcsnset_s( ws, _MAX_PATH, 0, _MAX_PATH );
+				}
+				while ( fo.GetInfoNextFileMask() );
+
+			}
+			else
+			{
 			
 			
-			strcpy_s( _currblock.NameFile, _MAX_PATH, nameval.c_str() );
-			strcpy_s( _currblock.ExtractTo, _MAX_PATH, extractval.c_str() );
-			_currblock.FileSize = fo.SizeSingleFile( nameval.c_str() );
-			_datablockarray.push_back( _currblock );			
-		}
+				strcpy_s( _currblock.NameFile, _MAX_PATH, nameval.c_str() );
+				strcpy_s( _currblock.ExtractTo, _MAX_PATH, extractval.c_str() );
+				_currblock.FileSize = fo.SizeSingleFile( nameval.c_str() );
+				_currblock.ModifyTime = fo.GetModifyTimeSingleFile( nameval.c_str() );
+
+				//wchar_t ws[ _MAX_PATH ];
+				MultiByteToWideChar( 0, 0, nameval.c_str(), -1, ws, _MAX_PATH );
+				//ws.assign( conv.from_bytes( nameval.c_str() ) );
+				_currblock.Attributes = GetFileAttributes( ws );				
+				_datablockarray.push_back( _currblock );
+
+				_wcsnset_s( ws, _MAX_PATH, 0, _MAX_PATH );
+			}
+		}//if( _installerfile->GetChildNameValue( currname, currval ) )
 	}
 	while ( _installerfile->GoNextNode( "file" ) );
 
@@ -186,6 +211,49 @@ void PackageBuilder::FillDataBlockArr( void )
 
 	return;		
 }
+
+
+// Р·Р°РїРѕР»РЅРёС‚СЊ СЃС‚СЂСѓРєС‚СѓСЂСѓ CommandBlock
+// С‚РµРєСѓС‰Р°СЏ РІРµСЂСЃРёСЏ РѕР±СЂР°Р±Р°С‚С‹РІР°РµС‚ interface/progress interface/color
+void PackageBuilder::FillCommandBlockArr( void )
+{
+	CommandBlock tmp;
+	std::string currname;
+	std::string currval;
+	std::string fullcommand;
+
+	_commandblockarray.clear();
+	_installerfile->Movecurrparent( TOKINSTINTERFACE );
+
+	if( !_installerfile->GoFirstNode( "interface" ) )
+		return;	
+
+	if( !_installerfile->GetChildNameValue( currname, currval ) )
+		return;
+	
+	do
+	{
+		fullcommand.assign( "interface" );
+		fullcommand.append( "/" );
+		_strnset( tmp.Command, 0, CommandMaxLength );
+		_strnset( tmp.Parameter, 0, ParameterMaxLength  );
+		//_strnset_s( tmp.Parameter, ParameterMaxLength, 0, ParameterMaxLength  );
+
+		if( currname == "progress" || currname == "color" )
+		{
+			fullcommand.append( currname );
+			if( fullcommand.length() < CommandMaxLength && currval.length() < ParameterMaxLength )
+			{
+				strcpy_s( tmp.Command, CommandMaxLength, fullcommand.c_str() );
+				strcpy_s( tmp.Parameter, ParameterMaxLength, currval.c_str() );
+				_commandblockarray.push_back( tmp );
+			}			
+		}
+	}
+	while( _installerfile ->GetChildNameValue( currname, currval, false ) );
+
+	return;
+}//void PackageBuilder::FillCommandBlockArr( void )
 
 
 void PackageBuilder::ClearCurrDataBlock( void )
@@ -197,14 +265,14 @@ void PackageBuilder::ClearCurrDataBlock( void )
 
 
 void PackageBuilder::FillHeaderSelf( void )
-// заполнить структуру HeaderSelf для запписи в заголовок инсталлятора
+// Р·Р°РїРѕР»РЅРёС‚СЊ СЃС‚СЂСѓРєС‚СѓСЂСѓ HeaderSelf РґР»СЏ Р·Р°РїРїРёСЃРё РІ Р·Р°РіРѕР»РѕРІРѕРє РёРЅСЃС‚Р°Р»Р»СЏС‚РѕСЂР°
 {
 	struct _stat stbuf;
 	_stat( _fullnameinstaller.c_str(), &stbuf );
+	
 	_hs.OffsetStartData = stbuf.st_size;
-
+	_hs.SizeAllCommandBlock = _commandblockarray.size() * sizeof( CommandBlock );
 	_hs.SizeAllDataBlock = _datablockarray.size() * sizeof( DataBlock );
-
 }
 
 
@@ -235,7 +303,7 @@ void PackageBuilder::GetNameInstaller( void )
 }
 
 void PackageBuilder::ExtractStub( void )
-//извлекает из ресурсов файл заглушку
+//РёР·РІР»РµРєР°РµС‚ РёР· СЂРµСЃСѓСЂСЃРѕРІ С„Р°Р№Р» Р·Р°РіР»СѓС€РєСѓ
 {
 	FileOperations fo;
 
@@ -282,9 +350,11 @@ bool PackageBuilder::SetInfoResource( void )
 
 
 void PackageBuilder::WriteDataInStub( FileOperations* f )
-// записать структуру _hs в заголовок, смещение 28 dex 1C hex
-// _datablockarray в конец файла
+// Р·Р°РїРёСЃР°С‚СЊ СЃС‚СЂСѓРєС‚СѓСЂСѓ _hs РІ Р·Р°РіРѕР»РѕРІРѕРє, СЃРјРµС‰РµРЅРёРµ 28 dex 1C hex
+// _commandblockarray РІ РєРѕРЅРµС† С„Р°Р№Р»Р°
+// _datablockarray РІ РєРѕРЅРµС† С„Р°Р№Р»Р°
 {	
+	FillCommandBlockArr();
 	FillDataBlockArr();
 	FillHeaderSelf();	
 
@@ -295,6 +365,33 @@ void PackageBuilder::WriteDataInStub( FileOperations* f )
 	f->WriteFromBuf( f->GetDataBuf(), sizeof( _hs ) );
 	f -> ClearBuf();
 
+	f->MoveInFile( _hs.OffsetStartData );
+
+	// РІРµРєС‚РѕСЂ РєРѕРјР°РЅРґ РІ С„Р°Р№Р»
+	for( unsigned int i = 0; i < _commandblockarray.size(); i ++ )
+	{
+		CommandBlock* t = &_commandblockarray.at( i );
+		f -> ArrayToDataBuf( (char *)t, sizeof( CommandBlock ) );
+
+		if( ( f->GetActualSizeBuf() + sizeof( CommandBlock ) ) > sizerwbuf )
+		{
+			f->WriteFromBuf( f->GetDataBuf(), f->GetActualSizeBuf() );
+			f->ClearBuf();
+		}
+
+	}
+	if( f -> GetActualSizeBuf() )
+	{
+		f->WriteFromBuf( f->GetDataBuf(), f->GetActualSizeBuf() );
+		f->ClearBuf();
+	}	
+
+	if( diagmsg.MsgPresent )
+	{
+		diagmsg.PrintMsg();
+		return;
+	}
+	
 	char fp[ _MAX_PATH ];	
 	char fn[ _MAX_FNAME ];
 	char fext[ _MAX_EXT ];
@@ -304,9 +401,7 @@ void PackageBuilder::WriteDataInStub( FileOperations* f )
 		_splitpath_s( tmpblock.at( i ).NameFile, 0, 0, 0, 0, fn, _MAX_FNAME, fext, _MAX_EXT );
 		_makepath_s( fp, _MAX_PATH, 0, 0, fn, fext );
 		strcpy_s( tmpblock.at( i ).NameFile, _MAX_PATH, fp );
-	}
-
-	f->MoveInFile( _hs.OffsetStartData );
+	}	
 	
 	for( int i = 0; i < tmpblock.size(); i ++ )
 	{
@@ -336,11 +431,11 @@ void PackageBuilder::WriteDataInStub( FileOperations* f )
 
 
 bool PackageBuilder::AddAllFileToStub(  FileOperations* f )
-// добавить последовательно все файлы из _datablockarray к exe
+// РґРѕР±Р°РІРёС‚СЊ РїРѕСЃР»РµРґРѕРІР°С‚РµР»СЊРЅРѕ РІСЃРµ С„Р°Р№Р»С‹ РёР· _datablockarray Рє exe
 {
 	FileOperations file;
 	
-	f->MoveInFile( _hs.OffsetStartData + _hs.SizeAllDataBlock );
+	f->MoveInFile( _hs.OffsetStartData + _hs.SizeAllCommandBlock + _hs.SizeAllDataBlock );
 
 	for( int i = 0; i < _datablockarray.size(); i ++ )
 	{

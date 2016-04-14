@@ -33,8 +33,11 @@ void MsgInfErr::SetMsg( const char* msg, const char* inf = 0 )
 	if ( 0 == inf )
 		_msginferr.assign( msg );
 	else
+	{
 		_msginferr.assign( msg ) + " " + inf;
-	
+		_msginferr.append( " " );
+		_msginferr.append( inf );
+	}	
 	MsgPresent = true;
 }
 

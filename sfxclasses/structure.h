@@ -1,9 +1,11 @@
+// ************************************************************************ 
+//   structure.h - v 0.3
+// ************************************************************************
+
 #pragma once
 
 #ifndef _CMDINST_STUCTURE_H
 #define _CMDINST_STUCTURE_H
-
-#include <vector>
 
 enum mandatory { NO = 0, YES = 1, NOORYES };
 
@@ -23,6 +25,9 @@ enum Tokens
 	TOKINSTALLER,
 	TOKINSTFILE,
 	TOKINSTEXTRACT,
+	TOKINSTINTERFACE,
+	TOKINTERFACEPROGRESS,
+	TOKINTERFACECOLOR,
 	TOKPRODUCT,
 	TOKPRODNAME,
 	TOKPRODVERSION,
@@ -43,12 +48,12 @@ struct Element
 	mandatory Melem;
 	int Repetition;	
 	Element* BaseElement;	
-	mandatory Param;
+	mandatory Param;//обязательность наличия параметра
 	Tokens Tn;
 };
 
 
-static const int EtalonSz = 11;
+static const int EtalonSz = 14;
 
 extern Element Etalon[ EtalonSz ];
 
@@ -62,8 +67,21 @@ static const int CommandListSz = 7;
 extern Commands CommandList[ CommandListSz ];
 
 extern Tokens FindElemCmd( const char* str );
+extern Tokens FindElemCmd( Tokens t, const char* str );
 extern Element* FindElement( Tokens t );
 
+//список допустимых значений переменных
+struct DefVariable
+{
+	char* Name;
+	Tokens Tn;
+	char* ValidValues;
+	int CountVal;
+};
 
+static const int DefVariableArrSz = 2;
+extern DefVariable DefVariableArr[ DefVariableArrSz ];
+
+extern bool VariableValControl( Tokens tn, const char* val );
 
 #endif // _CMDINST_STUCTURE_H

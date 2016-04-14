@@ -1,5 +1,5 @@
 // ************************************************************************ 
-//   DocInstaller.h - v 0.0.1
+//   DocInstaller.h - v 0.4
 // ************************************************************************ 
 
 #pragma once
@@ -8,6 +8,9 @@
 #define _CMDINST_DOCINSTALLER_H
 
 #include "structure.h"
+
+#include <string>
+#include <vector>
 
 class DocInstaller
 {
@@ -26,6 +29,8 @@ public:
 	void DelElement( const char* name, const char* val );
 	
 	void Movecurrparent( Tokens t );
+
+	void Movecurrparent( void );
 
 	int GetValueFromParent( int pos, const char* name, std::string& val );
 
@@ -77,6 +82,7 @@ private:
 	Docnode _currnode;
 	std::vector< Docnode > _structuredxml;
 	Docnode* _currparent;
+	Docnode* _lastinsertnode; //указатель на последний добавленный элемент
 	int _numcurrpos;// номер текущей позиции при переборе элементов вектора
 	int _numcurrnode; //указатель на текущий узел для GoFirstNode GoNextNode
 
@@ -89,6 +95,8 @@ private:
 	
 	int OffsetFromParent( const char* name, const Element* pparent ) const;
 
+	int OffsetFromParent( Tokens t, const Element* pparent ) const;
+
 	Element* ElementFromParent( const char* name, const Element* pparent ) const;
 
 	Docnode* FindParentOnTok( Tokens t );
@@ -100,6 +108,8 @@ private:
 	bool RequiredElementPresent( void );
 
 	bool RequiredValuePresent( void );
+
+	bool VariableControl( void );
 
 	bool TagExtractControl( void );
 };
