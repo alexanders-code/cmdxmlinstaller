@@ -2,7 +2,7 @@ A simple tool to create a installation packages!
 Alpha version
 
 Allows you to create self-extracting packages using commands from the command line or xml configuration file
-Позволяет создавать самораспаковывающиеся пакеты с помощью команд из командной строки или конфигурационного xml файла
+╧ючтюы хЄ ёючфртрЄ№ ёрьюЁрёяръют√тр■∙шхё  яръхЄ√ ё яюью∙№■ ъюьрэф шч ъюьрэфэющ ёЄЁюъш шыш ъюэЇшуєЁрЎшюээюую xml Їрщыр
 
 Command format - command "value"
 For example - open "C:\sfx\sfxsample.xml"
